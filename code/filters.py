@@ -1,11 +1,13 @@
 import cv2  
+import numpy as np 
+from matplotlib import pyplot as plt 
 
 gray = cv2.imread("../images/pills.jpg", 0)
 bgr = cv2.imread("../images/zebra.jpg")
 hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
 
 gauss = cv2.GaussianBlur(bgr, (11, 11), 0)
-bilat = cv2.bilateralFilter(bgr, 5, sigmaColor=75, sigmaSpace=75)
+bilat = cv2.bilateralFilter(gray, 5, sigmaColor=75, sigmaSpace=75)
 
 
 def compareEdges(filteredImg):
@@ -22,6 +24,22 @@ def compareEdges(filteredImg):
     cv2.imshow("Canny", canny)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+
+def compareThresholds(blurred_grayimg):
+    ret, th1 = cv2.threshold(blurred_grayimg, 100, 200, cv2.THRESH_BINARY)
+    th2 = cv2.adaptiveThreshold(blurred_grayimg, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
+    th3 = cv2.adaptiveThreshold(blurred_grayimg, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    
+    titles = ["Original", "Global", "Adaptive", "Gaussian"]
+    images = [blurred_grayimg, th1, th2, th3]
+
+    for i in range(len(images)):
+        plt.subplot(2,2,i+1), plt.imshow(images[i], "gray")
+        plt.title(titles[i])
+        plt.xticks([]), plt.yticks([])
+    plt.show()
+    
 
 
 def hueEdges(hsvimg):
@@ -53,6 +71,28 @@ def contourDetection(grayimg):
     cv2.destroyAllWindows()
 
 
+def blobDetection(grayimg):
+    parameters = cv2.SimpleBlobDetector_Params()
+    
+    parameters.filterByArea = True
+    parameters.minArea = 10 
+    parameters.filterByCircularity = True 
+    parameters.minCircularity = 0.1
+
+    detector = cv2.SimpleBlobDetector_create(parameters)
+
+    keypoints = detector.detect(grayimg)
+    imageWithKeypoints = cv2.drawKeypoints(grayimg, 
+                                           keypoints, 
+                                           np.array([]), 
+                                           (0,0,255), 
+                                           cv2.DrawMatchesFlags_DRAW_RICH_KEYPOINTS
+                                           )
+    cv2.imshow("Blobs", imageWithKeypoints)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
 def showComparison():
     cv2.imshow("org", bgr)
     cv2.imshow("gauss", gauss)
@@ -60,7 +100,8 @@ def showComparison():
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-
+compareThresholds(bilat)
+#blobDetection(gray)
 #compareEdges(bilat)
 #hueEdges(hsv)
-contourDetection(gray)
+#contourDetection(gray)
