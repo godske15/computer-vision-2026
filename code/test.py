@@ -8,7 +8,7 @@ def contourDetection(bgr):
     # ================= HSV MASKER =================
 
     # Gul
-    lower_yellow = np.array([20, 50, 50])
+    lower_yellow = np.array([20, 50, 80])
     upper_yellow = np.array([40, 255, 200])
     mask_yellow = cv2.inRange(hsv, lower_yellow, upper_yellow)
 
