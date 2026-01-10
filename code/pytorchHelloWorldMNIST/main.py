@@ -6,6 +6,10 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 
+'''
+Hvis i vil lære mere eller i dybden, så er artikler på https://machinelearningmastery.com/ anbefalelsesværdige.
+Virkeligt velskrevne og kræver absolut ikke en phd at læse!
+'''
 
 class Net(nn.Module):
     '''
