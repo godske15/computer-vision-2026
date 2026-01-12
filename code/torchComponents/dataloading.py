@@ -11,15 +11,11 @@ Dette er den lidt lettere måde at lave datasæt på end den indbyggede metode i
 Det er lettere fordi vi bare ændre i stierne hvis vi vil have andet data.
 '''
 
-# Klargør billedlister til binær klassificering
-imagesClass1 = []
-imagesClass2 = []
-labels = []
-
-# Hvilken mappe vores billededata ligger i
+# Hvilke mapper vores billededata ligger i
 trainDir = "../../images/pss/train/" 
 testDir = "../../images/pss/test/"
 
+# Hvordan vi vil behandle billederne. Her bare en resize til at gøre alle billederne mindre, og random flips.
 transform = transforms.Compose([
             transforms.Resize(size=(64,64)),
             transforms.RandomHorizontalFlip(p=0.5),
@@ -27,8 +23,8 @@ transform = transforms.Compose([
             ])
 
 trainData = datasets.ImageFolder(root=trainDir,
-                               transform = transform,
-                               target_transform=None)
+                                 transform = transform,
+                                 target_transform=None)
 print(f"Train data:\n{trainData}")
 
 testData = datasets.ImageFolder(root=testDir,
