@@ -28,18 +28,18 @@ while(1):
     hsv = cv2.cvtColor(frame2, cv2.COLOR_BGR2HSV)
     
     # Gul
-    lower_yellow = np.array([20, 50, 50])
+    lower_yellow = np.array([20, 10, 10])
     upper_yellow = np.array([40, 255, 200])
     mask_yellow = cv2.inRange(hsv, lower_yellow, upper_yellow)
     
     # Blå
-    lower_blue = np.array([95, 20, 20])
-    upper_blue = np.array([140, 150, 255])
+    lower_blue = np.array([100, 20, 20])
+    upper_blue = np.array([120, 255, 170])
     mask_blue = cv2.inRange(hsv, lower_blue, upper_blue)
     
     # Grøn
     lower_green = np.array([60, 6, 42])
-    upper_green = np.array([85, 40, 140])
+    upper_green = np.array([85, 50, 140])
     mask_green = cv2.inRange(hsv, lower_green, upper_green)
     
     # Pink
@@ -54,8 +54,8 @@ while(1):
     
     # Fjern støj med morphology
     kernel = np.ones((3,3), np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations = 2)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations = 2)
     
     # ================= CANNY EDGE DETECTION =================
     canny = cv2.Canny(image=mask, threshold1=100, threshold2=200)
@@ -82,8 +82,8 @@ while(1):
     
     # Definer område at ignorere (top og bund)
     h = frame2.shape[0]
-    ignore_top = int(h * 0.25)     # Ignorer top 15% af billedet
-    ignore_bottom = int(h * 0.75)  # Ignorer bund 15% af billedet
+    ignore_top = int(h * 0.25)     # Ignorer top 25% af billedet
+    ignore_bottom = int(h * 0.70)  # Ignorer bund 30% af billedet
     
     # Subsample edge points for bedre performance
     step = 20  # Øget fra 5 til 10 for færre vektorer
