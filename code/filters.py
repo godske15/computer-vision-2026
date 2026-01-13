@@ -3,12 +3,12 @@ import numpy as np
 from matplotlib import pyplot as plt 
 
 
-gray = cv2.imread("../images/pills.jpg", 0)
-bgr = cv2.imread("../images/zebra.jpg")
+gray = cv2.imread("../images/dartboard.jpg", 0)
+bgr = cv2.imread("../images/dartboard.jpg")
 hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
 
-gauss = cv2.GaussianBlur(gray, (11, 11), 0)
-bilat = cv2.bilateralFilter(gray, 5, sigmaColor=75, sigmaSpace=75)
+gauss = cv2.GaussianBlur(gray, (5, 5), 7)
+bilat = cv2.bilateralFilter(gray, 19, sigmaColor=75, sigmaSpace=75)
 
 #_, th3 = cv2.threshold(gray, 125, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)    
 
@@ -45,7 +45,7 @@ def compareThresholds(blurred_grayimg):
 
 
 def hueEdges(hsvimg):
-    shift = 25;
+    shift = 25
     h, s, v = cv2.split(hsvimg)
     shiftedHue = h.copy()
 
@@ -55,7 +55,7 @@ def hueEdges(hsvimg):
         for x in range(0, width):
             shiftedHue[y, x] = (h[y, x] + shift)%180
 
-    canny = cv2.Canny(shiftedHue, 150, 255);
+    canny = cv2.Canny(shiftedHue, 150, 255)
 
     cv2.imshow("Canny on shifted hue", canny)
     cv2.waitKey(0)
@@ -64,7 +64,8 @@ def hueEdges(hsvimg):
 
 def contourDetection(grayimg):
     #grayimg = cv2.bilateralFilter(grayimg, 9, sigmaColor=75, sigmaSpace=75)
-    grayimg = cv2.GaussianBlur(grayimg, (5, 5), 0)
+    gauss = cv2.adaptiveThreshold(grayimg, 150, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    grayimg = cv2.GaussianBlur(gauss, (5, 5), 0)
     ret, thresh = cv2.threshold(grayimg, 150, 255, cv2.THRESH_BINARY)
     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
     print(len(contours))
@@ -75,24 +76,36 @@ def contourDetection(grayimg):
     cv2.destroyAllWindows()
 
 
-def blobDetection(grayimg):
+def blobDetection(hsvimg):
+    shift = 25
+    h, s, v = cv2.split(hsvimg)
+    shiftedHue = h.copy()
+
+    height = shiftedHue.shape[0]
+    width = shiftedHue.shape[1]
+    for y in range(0, height):
+        for x in range(0, width):
+            shiftedHue[y, x] = (h[y, x] + shift)%180
+
+    canny = cv2.Canny(shiftedHue, 150, 255)
+
+    # Then blob detection on the contour image
     parameters = cv2.SimpleBlobDetector_Params()
     
     parameters.filterByArea = True
-    parameters.minArea = 100 
-    parameters.maxArea = 100000
+    parameters.minArea = 100
+    parameters.maxArea = 1000000
     parameters.filterByCircularity = True
-    parameters.minCircularity = 0.8
-    parameters.maxCircularity = 1.0
+    parameters.minCircularity = 0.5
     parameters.filterByInertia = True
-    parameters.minInertia = 0.1
+    parameters.minInertiaRatio = 0.1
     parameters.filterByConvexity = True
-    parameters.minConvexity = 0.1
+    parameters.minConvexity = 0.99
 
     detector = cv2.SimpleBlobDetector_create(parameters)
 
-    keypoints = detector.detect(grayimg)
-    imageWithKeypoints = cv2.drawKeypoints(grayimg, 
+    keypoints = detector.detect(canny)
+    imageWithKeypoints = cv2.drawKeypoints(canny, 
                                            keypoints, 
                                            np.array([]), 
                                            (0,0,255), 
@@ -111,7 +124,7 @@ def showComparison():
     cv2.destroyAllWindows()
 
 #compareThresholds(bilat)
-blobDetection(gray)
+blobDetection(hsv)
 #compareEdges(gauss)
 #hueEdges(hsv)
 #contourDetection(gray)

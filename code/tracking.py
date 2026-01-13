@@ -32,7 +32,7 @@ if __name__ == '__main__' :
             tracker = cv2.TrackerCSRT_create()
  
     # Read video
-    video = cv2.VideoCapture("videos/chaplin.mp4")
+    video = cv2.VideoCapture("../images/MVI_2469.MOV")
  
     # Exit if video not opened.
     if not video.isOpened():
