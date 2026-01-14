@@ -23,4 +23,4 @@ Efter vi har lært fra basics, at klargøre datasæt, at lave om på lagene i en
 * Visualisér modeller og log træningsstatistikker: [https://docs.pytorch.org/tutorials/recipes/recipes/tensorboard_with_pytorch.html](https://docs.pytorch.org/tutorials/recipes/recipes/tensorboard_with_pytorch.html) 
 * Alle typer loss funktioner, layers osv. der er tilgængelige via PyTorch API'en: [https://docs.pytorch.org/docs/stable/nn.html#loss-functions](https://docs.pytorch.org/docs/stable/nn.html#loss-functions)
 * Profiler: Check hardware performance for din model samt track antal kald: [https://docs.pytorch.org/tutorials/recipes/recipes/profiler_recipe.html](https://docs.pytorch.org/tutorials/recipes/recipes/profiler_recipe.html)
-
+* Confusion matrix - En lidt bedre måde at vise modellens performance end accuracy: [https://sklearn.org/stable/auto_examples/model_selection/plot_confusion_matrix.html](https://sklearn.org/stable/auto_examples/model_selection/plot_confusion_matrix.html)
