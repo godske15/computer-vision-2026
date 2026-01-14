@@ -1,101 +1,171 @@
 import numpy as np
 import cv2
-import argparse
 
-parser = argparse.ArgumentParser(description='This sample demonstrates Lucas-Kanade Optical Flow calculation. \
-                                              The example file can be downloaded from: \
-                                              https://www.bogotobogo.com/python/OpenCV_Python/images/mean_shift_tracking/slow_traffic_small.mp4')
-parser.add_argument('image', type=str, help='path to image file')
-args = parser.parse_args()
-cap = cv2.VideoCapture(args.image)
+cap = cv2.VideoCapture(cv2.samples.findFile("../images/MVI_2469.MOV"))
 
-#../images/MVI_2469.MOV
+# 16:9 med bredde 680
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 680)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 420)
 
-# params for ShiTomasi corner detection
-feature_params = dict( maxCorners = 50,
-                       qualityLevel = 0.3,
-                       minDistance = 7,
-                       blockSize = 7 )
+ret, frame1 = cap.read()
+if not ret:
+    print("Kunne ikke læse video")
+    exit()
 
-# Parameters for lucas kanade optical flow
-lk_params = dict( winSize  = (15, 15),
-                  maxLevel = 5,
-                  criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
+if frame1.shape[1] > 680:
+    frame1 = cv2.resize(frame1, (680, 420))
 
-# Create some random colors
-color = np.random.randint(0, 255, (100, 3))
+prvs = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
 
-# Take first frame and find corners in it
-ret, old_frame = cap.read()
+# ================= ROI (LILLE KASSE – KURV) =================
+ROI_X = 95
+ROI_Y = 170
+ROI_W = 65
+ROI_H = 70
 
-hsv = cv2.cvtColor(old_frame, cv2.COLOR_BGR2HSV)
+# ================= ROI (STOR KASSE – OMRÅDE) =================
+ROI2_X = 30
+ROI2_Y = 100
+ROI2_W = 195
+ROI2_H = 210
 
-# ================= HSV MASKER =================
+# ================= SCORE STATE =================
+score = 0
+scored = False
 
-# Gul
-lower_yellow = np.array([20, 50, 50])
-upper_yellow = np.array([40, 255, 200])
-mask_yellow = cv2.inRange(hsv, lower_yellow, upper_yellow)
+# ================= SCORE CONFIRMATION LOGIK =================
+score_pending = False
+pending_frames = 0
+PENDING_CONFIRM_FRAMES = 5
 
-# Blå
-lower_blue = np.array([95, 20, 20])
-upper_blue = np.array([140, 150, 255])
-mask_blue = cv2.inRange(hsv, lower_blue, upper_blue)
-
-# Grøn
-lower_green = np.array([60, 6, 42])
-upper_green = np.array([85, 40, 140])
-mask_green = cv2.inRange(hsv, lower_green, upper_green)
-
-# Pink
-lower_pink = np.array([170, 50, 50])
-upper_pink = np.array([180, 255, 255])
-mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
-
-# ================= KOMBINER MASKER =================
-
-mask = cv2.bitwise_or(mask_yellow, mask_blue)
-mask = cv2.bitwise_or(mask, mask_green)
-mask = cv2.bitwise_or(mask, mask_pink)
-
-old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
-p0 = cv2.goodFeaturesToTrack(old_gray, mask = mask, **feature_params)
-
-# Create a mask image for drawing purposes
-mask = np.zeros_like(old_frame)
-
-while(1):
-    ret, frame = cap.read()
+while True:
+    ret, frame2 = cap.read()
     if not ret:
-        print('No frames grabbed!')
+        print("No frames grabbed!")
         break
 
-    frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    if frame2.shape[1] > 680:
+        frame2 = cv2.resize(frame2, (680, 420))
 
-    # calculate optical flow
-    p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
+    # ================= HSV MASKER =================
+    hsv = cv2.cvtColor(frame2, cv2.COLOR_BGR2HSV)
 
-    # Select good points
-    if p1 is not None:
-        good_new = p1[st==1]
-        good_old = p0[st==1]
+    mask = np.zeros(hsv.shape[:2], dtype=np.uint8)
 
-    # draw the tracks
-    for i, (new, old) in enumerate(zip(good_new, good_old)):
-        a, b = new.ravel()
-        c, d = old.ravel()
-        mask = cv2.line(mask, (int(a), int(b)), (int(c), int(d)), color[i].tolist(), 2)
-        frame = cv2.circle(frame, (int(a), int(b)), 5, color[i].tolist(), -1)
+    masks = [
+        cv2.inRange(hsv, np.array([20, 10, 10]), np.array([40, 255, 200])),   # gul
+        cv2.inRange(hsv, np.array([100, 20, 20]), np.array([120, 255, 170])), # blå
+        cv2.inRange(hsv, np.array([60, 6, 42]), np.array([85, 50, 140])),     # grøn
+        cv2.inRange(hsv, np.array([170, 50, 50]), np.array([180, 255, 255]))  # pink
+    ]
 
-    img = cv2.add(frame, mask)
-    cv2.imshow('frame', img)
+    for m in masks:
+        mask = cv2.bitwise_or(mask, m)
 
-    # Tryk 'q' for at afslutte
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    kernel = np.ones((3, 3), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=2)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+
+    # ================= CANNY =================
+    canny = cv2.Canny(mask, 100, 200)
+
+    # ================= OPTICAL FLOW =================
+    next_gray = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+
+    flow = cv2.calcOpticalFlowFarneback(
+        prvs, next_gray, None,
+        pyr_scale=0.5,
+        levels=3,
+        winsize=15,
+        iterations=3,
+        poly_n=5,
+        poly_sigma=1.2,
+        flags=0
+    )
+
+    mag, _ = cv2.cartToPolar(flow[..., 0], flow[..., 1])
+
+    # ================= EDGE POINTS =================
+    edge_points = np.column_stack(np.where(canny > 0))[::20]
+
+    vis = frame2.copy()
+
+    # ================= FLOW VEKTORER (kun i lille ROI) =================
+    for y, x in edge_points:
+        if ROI2_X < x < ROI2_X + ROI2_W and ROI2_Y < y < ROI2_Y + ROI2_H:
+            if mag[y, x] > 0.5:
+                fx, fy = flow[y, x]
+                cv2.arrowedLine(
+                    vis,
+                    (x, y),
+                    (int(x + fx * 8), int(y + fy * 8)),
+                    (0, 255, 0),
+                    2,
+                    tipLength=0.3
+                )
+
+    # ================= ROI-BEVÆGELSE =================
+    moving_small = 0
+    moving_large = 0
+
+    for y, x in edge_points:
+        if mag[y, x] > 0.8:
+            if ROI_X < x < ROI_X + ROI_W and ROI_Y < y < ROI_Y + ROI_H:
+                moving_small += 1
+            if ROI2_X < x < ROI2_X + ROI2_W and ROI2_Y < y < ROI2_Y + ROI2_H:
+                moving_large += 1
+
+    SMALL_MOVING = moving_small > 5
+    LARGE_MOVING = moving_large > 5
+
+    # ================= SCORE LOGIK =================
+
+    # Start score-kandidat
+    if SMALL_MOVING and not score_pending and not scored:
+        score_pending = True
+        pending_frames = 0
+        print("Score candidate")
+
+    # Overvåg de næste frames
+    if score_pending:
+        pending_frames += 1
+
+        # Disc falder ud
+        if LARGE_MOVING and not SMALL_MOVING:
+            score_pending = False
+            print("Cancelled (fell out)")
+
+        # Score bekræftet
+        elif pending_frames >= PENDING_CONFIRM_FRAMES:
+            score += 1
+            scored = True
+            score_pending = False
+            print("SCORE!")
+
+    # Reset når alt er stille
+    if not SMALL_MOVING and not LARGE_MOVING:
+        scored = False
+
+    # ================= VISUALS =================
+    cv2.rectangle(vis, (ROI_X, ROI_Y), (ROI_X + ROI_W, ROI_Y + ROI_H), (0, 0, 255), 2)
+    cv2.rectangle(vis, (ROI2_X, ROI2_Y), (ROI2_X + ROI2_W, ROI2_Y + ROI2_H), (255, 0, 0), 2)
+
+    if score_pending:
+        cv2.putText(vis, "CHECKING",
+                    (ROI_X, ROI_Y - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6, (0, 255, 255), 2)
+
+    cv2.putText(vis, f"Score: {score}",
+                (20, 40),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1.2, (0, 255, 0), 3)
+
+    cv2.imshow("Optical Flow + Disc Golf Scoring", vis)
+
+    if cv2.waitKey(1) & 0xFF == 27:
         break
 
-    # Now update the previous frame and previous points
-    old_gray = frame_gray.copy()
-    p0 = good_new.reshape(-1, 1, 2)
+    prvs = next_gray
 
 cv2.destroyAllWindows()

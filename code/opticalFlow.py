@@ -4,13 +4,13 @@ import cv2
 cap = cv2.VideoCapture(cv2.samples.findFile("../images/MVI_2469.MOV"))
 
 # 16:9 med bredde 1080
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1080)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 608)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 680)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 420)
 
 ret, frame1 = cap.read()
 # Resize hvis videoen stadig er stor
-if frame1.shape[1] > 1080:
-    frame1 = cv2.resize(frame1, (1080, 608))
+if frame1.shape[1] > 680:
+    frame1 = cv2.resize(frame1, (680, 420))
 
 prvs = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
 
@@ -21,8 +21,8 @@ while(1):
         break
 
     # Resize frame
-    if frame2.shape[1] > 1080:
-        frame2 = cv2.resize(frame2, (1080, 608))
+    if frame2.shape[1] > 680:
+        frame2 = cv2.resize(frame2, (680, 420))
     
     # ================= HSV MASKER =================
     hsv = cv2.cvtColor(frame2, cv2.COLOR_BGR2HSV)
@@ -64,10 +64,10 @@ while(1):
     next = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
     
     flow = cv2.calcOpticalFlowFarneback(prvs, next, None, 
-                                        pyr_scale=0.5,
-                                        levels=3,
-                                        winsize=15,
-                                        iterations=3,
+                                        pyr_scale=0.8,
+                                        levels=2,
+                                        winsize=10,
+                                        iterations=2,
                                         poly_n=5,
                                         poly_sigma=1.2,
                                         flags=0)
@@ -86,7 +86,7 @@ while(1):
     ignore_bottom = int(h * 0.70)  # Ignorer bund 30% af billedet
     
     # Subsample edge points for bedre performance
-    step = 20  # Øget fra 5 til 10 for færre vektorer
+    step = 20  # Øget fra 5 til 20 for færre vektorer
     edge_points = edge_points[::step]
     
     # Tegn vektorer på edge points
@@ -112,7 +112,7 @@ while(1):
             cv2.arrowedLine(vis, (x, y), (end_x, end_y), 
                           color, 2, tipLength=0.3)
     
-    cv2.imshow('Canny Edges', canny)
+    #cv2.imshow('Canny Edges', canny)
     cv2.imshow('Optical Flow Vectors', vis)
 
     k = cv2.waitKey(1) & 0xff
