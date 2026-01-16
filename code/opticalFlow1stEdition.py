@@ -1,33 +1,62 @@
 import numpy as np
 import cv2
 
+# Aktiver OpenCL
+cv2.ocl.setUseOpenCL(True)
+
+# Check om det virker
+print(f"OpenCL enabled: {cv2.ocl.useOpenCL()}")
+print(f"OpenCL device: {cv2.ocl.Device.getDefault().name()}")
+
 cap = cv2.VideoCapture(cv2.samples.findFile("../images/MVI_2469.MOV"))
 
-# 16:9 med bredde 680
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 680)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 420)
+# ================= WINDOW SIZE SETTINGS =================
+WINDOW_WIDTH = 1020  # Ændr denne til ønsket bredde (dobbelt af 680)
+WINDOW_HEIGHT = 630  # Ændr denne til ønsket højde (dobbelt af 420)
+
+# Original størrelse (reference)
+ORIGINAL_WIDTH = 680
+ORIGINAL_HEIGHT = 420
+
+# Beregn skalerings-faktor
+SCALE_X = WINDOW_WIDTH / ORIGINAL_WIDTH
+SCALE_Y = WINDOW_HEIGHT / ORIGINAL_HEIGHT
 
 ret, frame1 = cap.read()
 if not ret:
     print("Kunne ikke læse video")
     exit()
 
-if frame1.shape[1] > 680:
-    frame1 = cv2.resize(frame1, (680, 420))
+# Resize til den ønskede vinduesstørrelse
+frame1 = cv2.resize(frame1, (WINDOW_WIDTH, WINDOW_HEIGHT))
 
-prvs = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+# Konverter første frame til GPU
+frame_gpu = cv2.UMat(frame1)
+prvs = cv2.cvtColor(frame_gpu, cv2.COLOR_BGR2GRAY)
 
-# ================= ROI (LILLE KASSE – KURV) =================
-ROI_X = 95
-ROI_Y = 170
-ROI_W = 65
-ROI_H = 70
+# ================= ROI (LILLE KASSE – KURV) - Original værdier =================
+# Disse værdier er fra den originale 680x420 størrelse
+ORIG_ROI_X = 95
+ORIG_ROI_Y = 170
+ORIG_ROI_W = 65
+ORIG_ROI_H = 70
 
-# ================= ROI (STOR KASSE – OMRÅDE) =================
-ROI2_X = 30
-ROI2_Y = 100
-ROI2_W = 195
-ROI2_H = 210
+# ================= ROI (STOR KASSE – OMRÅDE) - Original værdier =================
+ORIG_ROI2_X = 30
+ORIG_ROI2_Y = 100
+ORIG_ROI2_W = 195
+ORIG_ROI2_H = 210
+
+# ================= SKALEREDE ROI VÆRDIER =================
+ROI_X = int(ORIG_ROI_X * SCALE_X)
+ROI_Y = int(ORIG_ROI_Y * SCALE_Y)
+ROI_W = int(ORIG_ROI_W * SCALE_X)
+ROI_H = int(ORIG_ROI_H * SCALE_Y)
+
+ROI2_X = int(ORIG_ROI2_X * SCALE_X)
+ROI2_Y = int(ORIG_ROI2_Y * SCALE_Y)
+ROI2_W = int(ORIG_ROI2_W * SCALE_X)
+ROI2_H = int(ORIG_ROI2_H * SCALE_Y)
 
 # ================= SCORE STATE =================
 score = 0
@@ -36,7 +65,7 @@ scored = False
 # ================= SCORE CONFIRMATION LOGIK =================
 score_pending = False
 pending_frames = 0
-PENDING_CONFIRM_FRAMES = 5
+PENDING_CONFIRM_FRAMES = 25
 
 while True:
     ret, frame2 = cap.read()
@@ -44,17 +73,21 @@ while True:
         print("No frames grabbed!")
         break
 
-    if frame2.shape[1] > 680:
-        frame2 = cv2.resize(frame2, (680, 420))
+    # Resize til den ønskede vinduesstørrelse
+    frame2 = cv2.resize(frame2, (WINDOW_WIDTH, WINDOW_HEIGHT))
 
-    # ================= HSV MASKER =================
-    hsv = cv2.cvtColor(frame2, cv2.COLOR_BGR2HSV)
+    # Konverter frame til GPU
+    frame2_gpu = cv2.UMat(frame2)
 
-    mask = np.zeros(hsv.shape[:2], dtype=np.uint8)
+    # ================= HSV MASKER (på GPU) =================
+    hsv = cv2.cvtColor(frame2_gpu, cv2.COLOR_BGR2HSV)
 
+    # Start med første mask
+    mask = cv2.inRange(hsv, np.array([20, 40, 20]), np.array([40, 255, 200]))  # gul
+    
+    # Tilføj de andre masker
     masks = [
-        cv2.inRange(hsv, np.array([20, 10, 10]), np.array([40, 255, 200])),   # gul
-        cv2.inRange(hsv, np.array([100, 20, 20]), np.array([120, 255, 170])), # blå
+        cv2.inRange(hsv, np.array([100, 10, 10]), np.array([120, 255, 255])), # blå
         cv2.inRange(hsv, np.array([60, 6, 42]), np.array([85, 50, 140])),     # grøn
         cv2.inRange(hsv, np.array([170, 50, 50]), np.array([180, 255, 255]))  # pink
     ]
@@ -66,11 +99,11 @@ while True:
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=2)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
 
-    # ================= CANNY =================
+    # ================= CANNY (på GPU) =================
     canny = cv2.Canny(mask, 100, 200)
 
-    # ================= OPTICAL FLOW =================
-    next_gray = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+    # ================= OPTICAL FLOW (på GPU) =================
+    next_gray = cv2.cvtColor(frame2_gpu, cv2.COLOR_BGR2GRAY)
 
     flow = cv2.calcOpticalFlowFarneback(
         prvs, next_gray, None,
@@ -83,18 +116,27 @@ while True:
         flags=0
     )
 
-    mag, _ = cv2.cartToPolar(flow[..., 0], flow[..., 1])
+    # Split flow channels (GPU-kompatibel måde)
+    flow_x, flow_y = cv2.split(flow)
+    
+    # Beregn magnitude (på GPU)
+    mag = cv2.magnitude(flow_x, flow_y)
+
+    # Konverter kun det nødvendige til CPU for videre processing
+    canny_cpu = canny.get()
+    mag_cpu = mag.get()
+    flow_cpu = flow.get()
 
     # ================= EDGE POINTS =================
-    edge_points = np.column_stack(np.where(canny > 0))[::20]
+    edge_points = np.column_stack(np.where(canny_cpu > 0))[::15]
 
     vis = frame2.copy()
 
-    # ================= FLOW VEKTORER (kun i lille ROI) =================
+    # ================= FLOW VEKTORER (kun i lille Kasserne) =================
     for y, x in edge_points:
         if ROI2_X < x < ROI2_X + ROI2_W and ROI2_Y < y < ROI2_Y + ROI2_H:
-            if mag[y, x] > 0.5:
-                fx, fy = flow[y, x]
+            if mag_cpu[y, x] > 0.5:
+                fx, fy = flow_cpu[y, x]
                 cv2.arrowedLine(
                     vis,
                     (x, y),
@@ -109,14 +151,14 @@ while True:
     moving_large = 0
 
     for y, x in edge_points:
-        if mag[y, x] > 0.8:
+        if mag_cpu[y, x] > 0.8:
             if ROI_X < x < ROI_X + ROI_W and ROI_Y < y < ROI_Y + ROI_H:
                 moving_small += 1
             if ROI2_X < x < ROI2_X + ROI2_W and ROI2_Y < y < ROI2_Y + ROI2_H:
                 moving_large += 1
 
-    SMALL_MOVING = moving_small > 5
-    LARGE_MOVING = moving_large > 5
+    SMALL_MOVING = moving_small > 2
+    LARGE_MOVING = moving_large > 2
 
     # ================= SCORE LOGIK =================
 
