@@ -22,6 +22,7 @@ def orbKeypoints(grayimg):
 def siftKeypoints(grayimg):
     sift = cv2.SIFT.create()
     keypoints, destination = sift.detectAndCompute(grayimg, None)
+    print(keypoints)
     return keypoints, destination
 
 # Kun for ORB keypoints
@@ -32,7 +33,7 @@ def bruteforceMatching(img1, img2, keypoints1, keypoints2, description1, descrip
     # Viser kun 10 bedste matches, ændre matches[:10] for flere/færre
     imageWithMatches = cv2.drawMatches(img1, keypoints1, 
                                        img2, keypoints2, 
-                                       matches[:10], None, 
+                                       matches[:200], None, 
                                        flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     plt.imshow(imageWithMatches), plt.show()
 
@@ -59,7 +60,7 @@ def flannKnnMatching(img1, img2, keypoints1, keypoints2, description1, descripti
     matchesMask = [[0,0] for i in range(len(matches))]
     
     for i, (m,n) in enumerate(matches):
-        if m.distance < 0.75 * n.distance:
+        if m.distance < 0.5 * n.distance:
             matchesMask[i] = [1,0]
 
     drawParams = dict(matchColor = (0, 255, 0),
@@ -72,6 +73,8 @@ def flannKnnMatching(img1, img2, keypoints1, keypoints2, description1, descripti
 
 k1, d1 = siftKeypoints(gray)
 k2, d2 = siftKeypoints(grayComparison)
-
-flannKnnMatching(gray, grayComparison, k1, k2, d1, d2)
+#korb1, dorb1 = orbKeypoints(gray)
+#korb2, dorb2 = orbKeypoints(grayComparison)
+#bruteforceMatching(gray, grayComparison, korb1, korb2, dorb1, dorb2)
+#flannKnnMatching(gray, grayComparison, k1, k2, d1, d2)
 #knnDistanceMatch(gray, grayComparison, k1, k2, d1, d2)
