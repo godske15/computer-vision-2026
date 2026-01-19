@@ -111,9 +111,9 @@ def contourDetection(hsvimg):
     mask = np.maximum.reduce([mask1, mask2, mask3, mask4])
     
     # Anvend morphology for at fjerne støj (valgfrit men anbefalet)
-    kernel = np.ones((5,5), np.uint8)
+    """ kernel = np.ones((5,5), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel) """
     
     # Find contours DIREKTE på HSV masken
     contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -139,11 +139,47 @@ def contourDetection(hsvimg):
     cv2.destroyAllWindows()
 
 
-def blobDetection(grayimg):
+def blobDetection(hsvimg):
+    # Lav HSV maske for gul farve
+    lower_yellow = np.array([20, 100, 150])
+    upper_yellow = np.array([40, 255, 255])
+    
+    mask1 = cv2.inRange(hsvimg, lower_yellow, upper_yellow)
+
+    # Lav HSV maske for blå farve
+    lower_blue = np.array([95, 0, 0])
+    upper_blue = np.array([140, 150, 255])
+    
+    mask2 = cv2.inRange(hsvimg, lower_blue, upper_blue)
+
+    # Lav HSV maske for grøn farve
+    lower_green = np.array([35, 30, 100])
+    upper_green = np.array([80, 40, 140])
+    
+    mask3 = cv2.inRange(hsvimg, lower_green, upper_green)
+
+    # Lav HSV maske for pink farve
+    lower_pink = np.array([170, 50, 50])
+    upper_pink = np.array([180, 255, 255])
+    
+    mask4 = cv2.inRange(hsvimg, lower_pink, upper_pink)
+
+    # Læg maskerne sammen, således at der bliver kørt contour på alle HSV filtrerne
+    mask = np.maximum.reduce([mask1, mask2, mask3, mask4])
+    
+    # Anvend morphology for at fjerne støj (valgfrit men anbefalet)
+    kernel = np.ones((5,5), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+
+    grayimg = cv2.cvtColor(mask, cv2.COLOR_BGR2)
+
     parameters = cv2.SimpleBlobDetector_Params()
 
     parameters.filterByArea = True
     parameters.minArea = 100
+    parameters.filterByColor = True
+    parameters.blobColor = 255
     parameters.filterByCircularity = True 
     parameters.minCircularity = 0.1
     parameters.maxCircularity = 1.0
@@ -178,7 +214,7 @@ def showComparison():
 
 
 #compareThresholds(bilat)
-#blobDetection(gray)
+#blobDetection(hsv)
 #compareEdges(gauss)
 #hueEdges(hsv)
 contourDetection(hsv)

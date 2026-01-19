@@ -3,11 +3,11 @@ import numpy as np
 from matplotlib import pyplot as plt 
 
 
-gray = cv2.imread("../images/dartboard.jpg", 0)
-bgr = cv2.imread("../images/dartboard.jpg")
+gray = cv2.imread("../images/disc3.jpg", 0)
+bgr = cv2.imread("../images/disc3.jpg")
 hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
 
-gauss = cv2.GaussianBlur(gray, (5, 5), 7)
+gauss = cv2.GaussianBlur(gray, (5, 5), 0)
 bilat = cv2.bilateralFilter(gray, 19, sigmaColor=75, sigmaSpace=75)
 
 #_, th3 = cv2.threshold(gray, 125, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)    
