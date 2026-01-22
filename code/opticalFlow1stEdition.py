@@ -84,10 +84,10 @@ while True:
 
     # Start med første mask
     mask = cv2.inRange(hsv, np.array([20, 40, 20]), np.array([40, 255, 200]))  # gul
-    
+
     # Tilføj de andre masker
     masks = [
-        cv2.inRange(hsv, np.array([100, 10, 10]), np.array([120, 255, 255])), # blå
+        cv2.inRange(hsv, np.array([100, 0, 0]), np.array([120, 255, 255])), # blå
         cv2.inRange(hsv, np.array([60, 6, 42]), np.array([85, 50, 140])),     # grøn
         cv2.inRange(hsv, np.array([170, 50, 50]), np.array([180, 255, 255]))  # pink
     ]

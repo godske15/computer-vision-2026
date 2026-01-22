@@ -7,13 +7,13 @@ bgr = cv2.imread("../images/disc3.jpg")
 hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
 
 gauss = cv2.GaussianBlur(gray, (5, 5), 0)
-bilat = cv2.bilateralFilter(gray, 5, sigmaColor=75, sigmaSpace=75)
+bilat = cv2.bilateralFilter(gray, 15, sigmaColor=75, sigmaSpace=75)
 
 def compareEdges(filteredImg):
     sobelx = cv2.Sobel(src=filteredImg, ddepth=cv2.CV_64F, dx=1, dy=0, ksize=5)
     sobely = cv2.Sobel(src=filteredImg, ddepth=cv2.CV_64F, dx=0, dy=1, ksize=5)
     sobelxy = cv2.Sobel(src=filteredImg, ddepth=cv2.CV_64F, dx=1, dy=1, ksize=5)
-    canny = cv2.Canny(image=filteredImg, threshold1=100, threshold2=200)
+    canny = cv2.Canny(filteredImg, 100, 200)
     laplacian = cv2.convertScaleAbs(cv2.Laplacian(filteredImg, cv2.CV_64F))
 
     titles = ["Original", "Sobel", "Canny", "Laplace"]
@@ -22,16 +22,20 @@ def compareEdges(filteredImg):
     #titles = ["Original", "Sobelx", "Sobely", "Sobelxy"]
     #images = [filteredImg, sobelx, sobely, sobelxy]
 
-    for i in range(len(images)):
+    """ for i in range(len(images)):
         plt.subplot(2,2,i+1), plt.imshow(images[i], "gray")
         plt.title(titles[i])
         plt.xticks([]), plt.yticks([])
-    plt.show()
+    plt.show() """
+
+    cv2.imshow("Canny", canny)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 
 def compareThresholds(blurred_grayimg):
-    th1 = cv2.adaptiveThreshold(blurred_grayimg, 150, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
-    th2 = cv2.adaptiveThreshold(blurred_grayimg, 150, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    th1 = cv2.adaptiveThreshold(blurred_grayimg, 150, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    th2 = cv2.adaptiveThreshold(blurred_grayimg, 150, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
     _, th3 = cv2.threshold(blurred_grayimg, 100, 200, cv2.THRESH_BINARY+cv2.THRESH_OTSU)    
     titles = ["Original", "Gaussian", "Adaptive", "Otsu"]
     images = [blurred_grayimg, th1, th2, th3]
@@ -63,19 +67,35 @@ def hueEdges(hsvimg):
 
 def filterYellowHSV(hsvimg):
 
-    # Lav HSV maske for blå farve
-    lower_blue = np.array([90, 0, 0])
-    upper_blue = np.array([145, 150, 255])
+    # Gul
+    lower_yellow = np.array([20, 10, 10])
+    upper_yellow = np.array([40, 255, 200])
+    mask_yellow = cv2.inRange(hsv, lower_yellow, upper_yellow)
     
-    mask1 = cv2.inRange(hsvimg, lower_blue, upper_blue)
-
-    # Lav HSV maske for grøn farve
-    lower_green = np.array([35, 10, 20])
-    upper_green = np.array([80, 255, 255])
+    # Blå
+    lower_blue = np.array([100, 20, 20])
+    upper_blue = np.array([120, 255, 170])
+    mask_blue = cv2.inRange(hsv, lower_blue, upper_blue)
     
-    mask2 = cv2.inRange(hsvimg, lower_green, upper_green)
-
-    mask = np.maximum.reduce([mask1, mask2])
+    # Grøn
+    lower_green = np.array([60, 6, 42])
+    upper_green = np.array([85, 50, 140])
+    mask_green = cv2.inRange(hsv, lower_green, upper_green)
+    
+    # Pink
+    lower_pink = np.array([170, 50, 50])
+    upper_pink = np.array([180, 255, 255])
+    mask_pink = cv2.inRange(hsv, lower_pink, upper_pink)
+    
+    # Kombiner alle masker
+    mask = cv2.bitwise_or(mask_yellow, mask_blue)
+    mask = cv2.bitwise_or(mask, mask_green)
+    mask = cv2.bitwise_or(mask, mask_pink)
+    
+    # Fjern støj med morphology
+    kernel = np.ones((3,3), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations = 2)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations = 2)
     
     cv2.imshow("Canny on shifted hue", mask)
     cv2.waitKey(0)
@@ -84,8 +104,8 @@ def filterYellowHSV(hsvimg):
 
 def contourDetection(hsvimg):
     # Lav HSV maske for gul farve
-    lower_yellow = np.array([20, 100, 150])
-    upper_yellow = np.array([40, 255, 255])
+    lower_yellow = np.array([25, 20, 20])
+    upper_yellow = np.array([35, 255, 255])
     
     mask1 = cv2.inRange(hsvimg, lower_yellow, upper_yellow)
 
@@ -215,8 +235,8 @@ def showComparison():
 
 #compareThresholds(bilat)
 #blobDetection(hsv)
-#compareEdges(gauss)
+compareEdges(gauss)
 #hueEdges(hsv)
-contourDetection(hsv)
+#contourDetection(hsv)
 #showComparison()
 #filterYellowHSV(hsv)

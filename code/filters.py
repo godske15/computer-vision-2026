@@ -76,19 +76,7 @@ def contourDetection(grayimg):
     cv2.destroyAllWindows()
 
 
-def blobDetection(hsvimg):
-    shift = 25
-    h, s, v = cv2.split(hsvimg)
-    shiftedHue = h.copy()
-
-    height = shiftedHue.shape[0]
-    width = shiftedHue.shape[1]
-    for y in range(0, height):
-        for x in range(0, width):
-            shiftedHue[y, x] = (h[y, x] + shift)%180
-
-    canny = cv2.Canny(shiftedHue, 150, 255)
-
+def blobDetection(grayimg):
     # Then blob detection on the contour image
     parameters = cv2.SimpleBlobDetector_Params()
     
@@ -104,8 +92,10 @@ def blobDetection(hsvimg):
 
     detector = cv2.SimpleBlobDetector_create(parameters)
 
-    keypoints = detector.detect(canny)
-    imageWithKeypoints = cv2.drawKeypoints(canny, 
+    dst = cv2.equalizeHist(grayimg)
+
+    keypoints = detector.detect(dst)
+    imageWithKeypoints = cv2.drawKeypoints(dst, 
                                            keypoints, 
                                            np.array([]), 
                                            (0,0,255), 
@@ -124,7 +114,7 @@ def showComparison():
     cv2.destroyAllWindows()
 
 #compareThresholds(bilat)
-blobDetection(hsv)
+blobDetection(gray)
 #compareEdges(gauss)
 #hueEdges(hsv)
 #contourDetection(gray)
